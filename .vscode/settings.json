@@ -1,9 +1,0 @@
-{
-  "ruff.lineLength": 120,
-  "ruff.lint.select": [
-    "ALL"
-  ],
-  "ruff.lint.ignore": [
-    "T201"
-  ]
-}
