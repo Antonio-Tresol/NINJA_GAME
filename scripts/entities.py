@@ -2,13 +2,11 @@
 
 from pygame import Surface
 
-from game import Game
-
 
 class PhysicsEntity:
     """A Physics entity class."""
 
-    def __init__(self, game: Game, e_type: str, pos: tuple[int, int], size: tuple[int, int]) -> None:
+    def __init__(self, game, e_type: str, pos: tuple[int, int], size: tuple[int, int]) -> None:  # noqa: ANN001
         """Init class."""
         self.game = game
         self.type = e_type

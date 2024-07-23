@@ -1,1 +1,1 @@
-"""Entities module."""
+"""Scripts module."""

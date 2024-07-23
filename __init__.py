@@ -1,1 +1,1 @@
-"""Game module."""
+"""Main Game module."""

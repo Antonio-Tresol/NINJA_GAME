@@ -5,6 +5,10 @@ import sys
 import pygame
 from pygame import Surface
 
+from scripts.entities import PhysicsEntity
+from scripts.tilemap import Tilemap
+from scripts.utils import load_image, load_images
+
 # aliases
 Color = tuple[int, int, int]
 Point2D = list[float]
@@ -14,6 +18,12 @@ collision_color: Color = (0, 100, 225)
 not_collision_color: Color = (0, 50, 155)
 # game constants
 speed: int = 5
+axis_left_threshold = -0.4
+axis_right_threshold = 0.4
+# screen constants
+SCREEN_SIZE: tuple[int, int] = (640, 480)
+# display size will be half the screen size to keep the proportions
+DISPLAY_SIZE: tuple[int, int] = (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1] // 2)
 
 
 class Game:
@@ -30,51 +40,35 @@ class Game:
         pygame.display.set_caption("Ninja Game")
         # create window (surface is an object representing images in pygame)
         # coordinates system right is positive x and down is positive y
-        self.screen: Surface = pygame.display.set_mode(size=(640, 480))
-
-        # clock to restric the framerate latter (we are going to use this instead of delta time, because of math)
+        self.screen: Surface = pygame.display.set_mode(size=SCREEN_SIZE)
+        # set custom icons to game
+        pygame.display.set_icon(pygame.image.load("data/images/icon.png").convert())
+        # the actual render display, half resolutions of screen
+        # we are going to draw here and the scale it up to the screen, pixel art effect
+        self.display = pygame.Surface(size=DISPLAY_SIZE)  # empty, image of this dimension
         self.clock = pygame.time.Clock()
-        # to load an image we use pygame.image.load, it works with png and other formats
-        self.img: Surface = pygame.image.load("data/images/clouds/cloud_1.png")
-        # to replace a color from the image with transparency we use set_colorkey, receive the color as a list
-        # or a tuple
-        self.img.set_colorkey((0, 0, 0))
-        self.img_pos = [160, 260]
         self.movement = [False, False]
-        # for collision detection (left, top, width, height)
-        # for some reason name parameter doesn't work, so each time try if name parameters work or not
-        self.collision_area = pygame.Rect(50, 50, 300, 50)
+        self.assets: dict[str, Surface | list[Surface]] = {
+            "decor": load_images("tiles/decor"),
+            "grass": load_images("tiles/grass"),
+            "stone": load_images("tiles/stone"),
+            "large_decor": load_images("tiles/large_decor"),
+            "player": load_image("entities/player.png"),
+        }
+
+        self.player = PhysicsEntity(game=self, e_type="player", pos=(50, 50), size=(8, 15))
+        self.tilemap = Tilemap(game=self, tile_size=16)
 
     def run(self) -> None:  # noqa: C901, PLR0912
         """Run game loop."""
         # a game loop: the game everyframe, there can be multiple game loop running simultaneusly
         # each frame is an iteration in the loop
         while True:
-            self.screen.fill(color=skycolor)
-            
-            # creates a collision rectangle for the cloud, used for collision detection
-            img_r = pygame.Rect(self.img_pos[0], self.img_pos[1], self.img.get_width(), self.img.get_height())
-            # check if two rectangles overlap in this frame
-            if img_r.colliderect(self.collision_area):
-                pygame.draw.rect(self.screen, collision_color, self.collision_area, border_radius=10)
-            else:
-                pygame.draw.rect(self.screen, not_collision_color, self.collision_area, border_radius=10)
-
-            # making our image move, we do this trick of movement 1- movement 0 to ensure that
-            # if both are true, we do not move
-            self.img_pos[1] += (self.movement[1] - self.movement[0]) * speed
-            # blit function draws/merges an image (surface object in pygame) into another one
-            # in gpu base rendering it is not this way.
-            # see https://en.wikipedia.org/wiki/Bit_blit for more reference on blit as a computer graphics operation
-            #  dest = (coordinates x, y) top left is 0, 0.
-            self.screen.blit(source=self.img, dest=self.img_pos)
-            # if we do like this, the images will keep merging into each other if we move them
-            # so remember to clear the screen each time
-            # pygame even is the event handler (button press, mouse, touch types, resize)
-
-            # in pygame, layering is done  in the order we put things in the screen, so as we put the rectangles first 
-            # and the cloud then, the cloud, when moved, will appear in front of the rectangle
-            # when working with objects is great idea to separate update and rendering of an object
+            self.display.fill(color=skycolor)
+            self.tilemap.render(surface=self.display)
+            # we only want to update x, not y, because platformer
+            self.player.update(movement=(self.movement[1] - self.movement[0], 0))
+            self.player.render(surface=self.display)
             for event in pygame.event.get():
                 # events have types, so that's how we know what happen
                 # print event)
@@ -86,36 +80,40 @@ class Game:
                 # keydown doesn't mean something is being pressed continuosly, combining keydown and key up we can get
                 # holding behavior
                 if event.type == pygame.KEYDOWN:
-                    print(event)
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_LEFT:
                         self.movement[0] = True
-                    if event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_RIGHT:
                         self.movement[1] = True
                 # when the key lifts
                 elif event.type == pygame.KEYUP:
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_LEFT:
                         self.movement[0] = False
-                    if event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_RIGHT:
                         self.movement[1] = False
                 # using the dpad
-                if event.type == pygame.JOYHATMOTION:
-                    print(event)
-                    if event.value == (0, 1):
+                elif event.type == pygame.JOYHATMOTION:
+                    if event.value == (-1, 0):  # left
                         self.movement[0] = True
-                    if event.value == (0, -1):
-                        self.movement[1] = True
-                    if event.value == (0, 0):
+                    elif event.value == (1, 0):
+                        self.movement[1] = True  # right
+                    elif event.value == (0, 0):
                         self.movement = [False, False]
-                """
-                if event.type in [pygame.JOYBUTTONDOWN, pygame.KEYDOWN]:
-                    print(f"key down: {event}")
-                # the joysticks of the game pad and the triggers
-                if event.type == pygame.JOYAXISMOTION:
-                    print(f"Joystick motion: {event}")
-                # the dpad
-                if event.type == pygame.JOYHATMOTION:
-                    print(f"Dpad action: {event}")
-                """
+                # using the joysticks (axis 0 is left right of Left Axis, axis 1 is right of left axis)
+                elif event.type == pygame.JOYAXISMOTION and event.axis == 0:
+                    if event.value < axis_left_threshold:  # axis moved to the left
+                        self.movement[0] = True
+                        self.movement[1] = False
+                    elif event.value > axis_right_threshold:  # axis moved to the right
+                        self.movement[1] = True
+                        self.movement[0] = False
+                    else:
+                        self.movement[0] = False
+                        self.movement[1] = False
+            # we render the display scale up into the screen, for that we use pygame.transform.scale
+            self.screen.blit(
+                source=pygame.transform.scale(surface=self.display, size=self.screen.get_size()),
+                dest=(0, 0),
+            )
             # updates the screen, if we do not call this, the changes we made to the screen won't be displayed
             pygame.display.update()
             # dynamic sleep, it sleeps as long as it need to mantain the 60fps
