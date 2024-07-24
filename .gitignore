@@ -1,2 +1,3 @@
 .vscode/settings.json
 ruff.toml
+scripts/__pycache__/*

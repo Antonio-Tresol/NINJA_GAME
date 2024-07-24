@@ -71,7 +71,7 @@ class Game:
             self.player.render(surface=self.display)
             for event in pygame.event.get():
                 # events have types, so that's how we know what happen
-                # print event)
+                # print event
                 if event.type == pygame.QUIT:
                     # to quit the game we quit pygame and we close the app
                     pygame.quit()
