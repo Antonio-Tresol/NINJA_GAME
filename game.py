@@ -56,7 +56,7 @@ class Game:
             "player": load_image("entities/player.png"),
         }
 
-        self.player = PhysicsEntity(game=self, e_type="player", pos=(50, 50), size=(8, 15))
+        self.player = PhysicsEntity(game=self, entity_type="player", position=(50, 50), size=(8, 15))
         self.tilemap = Tilemap(game=self, tile_size=16)
 
     def run(self) -> None:  # noqa: C901, PLR0912
@@ -67,7 +67,10 @@ class Game:
             self.display.fill(color=skycolor)
             self.tilemap.render(surface=self.display)
             # we only want to update x, not y, because platformer
-            self.player.update(movement=(self.movement[1] - self.movement[0], 0))
+            self.player.update(
+                tilemap=self.tilemap,
+                movement=(self.movement[1] - self.movement[0], 0),
+            )
             self.player.render(surface=self.display)
             for event in pygame.event.get():
                 # events have types, so that's how we know what happen
@@ -82,28 +85,28 @@ class Game:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         self.movement[0] = True
-                    elif event.key == pygame.K_RIGHT:
+                    if event.key == pygame.K_RIGHT:
                         self.movement[1] = True
                 # when the key lifts
-                elif event.type == pygame.KEYUP:
+                if event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT:
                         self.movement[0] = False
-                    elif event.key == pygame.K_RIGHT:
+                    if event.key == pygame.K_RIGHT:
                         self.movement[1] = False
                 # using the dpad
-                elif event.type == pygame.JOYHATMOTION:
+                if event.type == pygame.JOYHATMOTION:
                     if event.value == (-1, 0):  # left
                         self.movement[0] = True
-                    elif event.value == (1, 0):
+                    if event.value == (1, 0):
                         self.movement[1] = True  # right
-                    elif event.value == (0, 0):
+                    if event.value == (0, 0):
                         self.movement = [False, False]
                 # using the joysticks (axis 0 is left right of Left Axis, axis 1 is right of left axis)
-                elif event.type == pygame.JOYAXISMOTION and event.axis == 0:
+                if event.type == pygame.JOYAXISMOTION and event.axis == 0:
                     if event.value < axis_left_threshold:  # axis moved to the left
                         self.movement[0] = True
                         self.movement[1] = False
-                    elif event.value > axis_right_threshold:  # axis moved to the right
+                    if event.value > axis_right_threshold:  # axis moved to the right
                         self.movement[1] = True
                         self.movement[0] = False
                     else:

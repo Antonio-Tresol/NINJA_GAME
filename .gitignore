@@ -2,3 +2,9 @@
 ruff.toml
 scripts/__pycache__/
 __pycache__/
+scripts/__pycache__/__init__.cpython-312.pyc
+scripts/__pycache__/entities.cpython-312.pyc
+scripts/__pycache__/__init__.cpython-312.pyc
+scripts/__pycache__/entities.cpython-312.pyc
+scripts/__pycache__/tilemap.cpython-312.pyc
+scripts/__pycache__/utils.cpython-312.pyc
