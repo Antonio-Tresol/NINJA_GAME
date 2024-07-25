@@ -17,9 +17,10 @@ skycolor: Color = (14, 219, 248)
 collision_color: Color = (0, 100, 225)
 not_collision_color: Color = (0, 50, 155)
 # game constants
-speed: int = 5
-axis_left_threshold = -0.4
-axis_right_threshold = 0.4
+JUMP_SPEED = -3
+SPEED: float = 5
+LEFT_AXIS_THRESHOLD: float = -0.4
+RIGHT_AXIS_THRESHOLD: float = 0.4
 # screen constants
 SCREEN_SIZE: tuple[int, int] = (640, 480)
 # display size will be half the screen size to keep the proportions
@@ -87,6 +88,9 @@ class Game:
                         self.movement[0] = True
                     if event.key == pygame.K_RIGHT:
                         self.movement[1] = True
+                    if event.key == pygame.K_UP:
+                        # override vertical velocity to jump
+                        self.player.velocity[1] = JUMP_SPEED
                 # when the key lifts
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT:
@@ -101,17 +105,23 @@ class Game:
                         self.movement[1] = True  # right
                     if event.value == (0, 0):
                         self.movement = [False, False]
+
                 # using the joysticks (axis 0 is left right of Left Axis, axis 1 is right of left axis)
                 if event.type == pygame.JOYAXISMOTION and event.axis == 0:
-                    if event.value < axis_left_threshold:  # axis moved to the left
+                    print(event)
+                    if event.value < LEFT_AXIS_THRESHOLD:  # axis moved to the left
                         self.movement[0] = True
                         self.movement[1] = False
-                    if event.value > axis_right_threshold:  # axis moved to the right
+                    elif event.value > RIGHT_AXIS_THRESHOLD:  # axis moved to the right
                         self.movement[1] = True
                         self.movement[0] = False
                     else:
                         self.movement[0] = False
                         self.movement[1] = False
+
+                if event.type == pygame.JOYBUTTONDOWN and event.button == 0:
+                    # jump by overriding the vertical velocity
+                    self.player.velocity[1] = JUMP_SPEED
             # we render the display scale up into the screen, for that we use pygame.transform.scale
             self.screen.blit(
                 source=pygame.transform.scale(surface=self.display, size=self.screen.get_size()),
