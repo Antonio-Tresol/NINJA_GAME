@@ -5,19 +5,20 @@ import sys
 import pygame
 from pygame import Surface
 
+from scripts.clouds import Clouds
 from scripts.entities import PhysicsEntity
 from scripts.tilemap import Tilemap
 from scripts.utils import load_image, load_images
 
 # aliases
 Color = tuple[int, int, int]
-Point2D = list[float]
+Vector2D = tuple[float, float] | list[float] | tuple[int, int] | list[int]
 # color constants
 skycolor: Color = (14, 219, 248)
 collision_color: Color = (0, 100, 225)
 not_collision_color: Color = (0, 50, 155)
 # game constants
-JUMP_SPEED = -3
+JUMP_SPEED: float = -3
 SPEED: float = 5
 LEFT_AXIS_THRESHOLD: float = -0.4
 RIGHT_AXIS_THRESHOLD: float = 0.4
@@ -25,6 +26,7 @@ RIGHT_AXIS_THRESHOLD: float = 0.4
 SCREEN_SIZE: tuple[int, int] = (640, 480)
 # display size will be half the screen size to keep the proportions
 DISPLAY_SIZE: tuple[int, int] = (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1] // 2)
+SCROLL_STEP: float = 30
 
 
 class Game:
@@ -48,31 +50,63 @@ class Game:
         # we are going to draw here and the scale it up to the screen, pixel art effect
         self.display = pygame.Surface(size=DISPLAY_SIZE)  # empty, image of this dimension
         self.clock = pygame.time.Clock()
-        self.movement = [False, False]
-        self.assets: dict[str, Surface | list[Surface]] = {
+        self.movement: list[bool] = [False, False]
+        # this dictionary has key str and value Surface or list[Surface], be mindfull of that
+        self.assets: dict = {
             "decor": load_images("tiles/decor"),
             "grass": load_images("tiles/grass"),
             "stone": load_images("tiles/stone"),
             "large_decor": load_images("tiles/large_decor"),
             "player": load_image("entities/player.png"),
+            "background": load_image("background.png"),
+            "clouds": load_images("clouds"),
         }
+        # cloud collection
+        self.clouds = Clouds(cloud_images=self.assets["clouds"], count=16)
 
         self.player = PhysicsEntity(game=self, entity_type="player", position=(50, 50), size=(8, 15))
         self.tilemap = Tilemap(game=self, tile_size=16)
+        # illusion of a camera, moving things in the world moves this around
+        # cameras location, we apply it as an offset to everything we are rendering in the screen
+        self.scroll: list[float] = [0, 0]
 
     def run(self) -> None:  # noqa: C901, PLR0912
         """Run game loop."""
         # a game loop: the game everyframe, there can be multiple game loop running simultaneusly
         # each frame is an iteration in the loop
         while True:
-            self.display.fill(color=skycolor)
-            self.tilemap.render(surface=self.display)
+            self.display.blit(source=self.assets["background"], dest=(0, 0))
+            # we want our camera to center the player smothly. We divide between the display width to adjust to the fact
+            # that the player centerx is the top left of the player, by dividing by the display width we ensure the
+            # player is at the center of the camera.
+            # this formula is the first part is where we want the camera to be  minus the position where the camera is
+            # that gives us how far the camera is to the point where we are right now, so we add that to the scroll x.
+            # divinding by a scroll step gives us a smoth "adapting" of the camera to the position where we want it to
+            # be.
+            # So in a nutshell our "camera" or "viewport" is just moving everything a bit in some direction to always have
+            # in this case the player at the middle of the screen.
+            self.scroll[0] += (
+                (self.player.rect().centerx - self.display.get_width() / 2) - self.scroll[0]
+            ) / SCROLL_STEP
+            # the process is equivalent for the y position of the camera
+            self.scroll[1] += (
+                (self.player.rect().centery - self.display.get_height() / 2) - self.scroll[1]
+            ) / SCROLL_STEP
+            # the approach before might cause some jittering due to subpixel movement, so we will transform everything
+            # so we will transform to int an pass that, so that it is smoth for pixel art, not an issue for the camera
+            # to use int
+
+            render_scroll: Vector2D = (int(self.scroll[0]), int(self.scroll[1]))
+            # we want the clouds to be render before/behind the tiles
+            self.clouds.update()
+            self.clouds.render(surface=self.display, offset=render_scroll)
+            self.tilemap.render(surface=self.display, offset=render_scroll)
             # we only want to update x, not y, because platformer
             self.player.update(
                 tilemap=self.tilemap,
                 movement=(self.movement[1] - self.movement[0], 0),
             )
-            self.player.render(surface=self.display)
+            self.player.render(surface=self.display, offset=render_scroll)
             for event in pygame.event.get():
                 # events have types, so that's how we know what happen
                 # print event
@@ -108,7 +142,6 @@ class Game:
 
                 # using the joysticks (axis 0 is left right of Left Axis, axis 1 is right of left axis)
                 if event.type == pygame.JOYAXISMOTION and event.axis == 0:
-                    print(event)
                     if event.value < LEFT_AXIS_THRESHOLD:  # axis moved to the left
                         self.movement[0] = True
                         self.movement[1] = False

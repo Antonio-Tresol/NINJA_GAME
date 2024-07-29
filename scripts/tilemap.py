@@ -3,6 +3,7 @@
 from pygame import Rect, Surface
 
 # aliases
+Vector2D = tuple[float, float] | list[float] | list[int] | tuple[int, int]
 Tile = dict[str, str | int | tuple[float, float]]
 # for physics and collisions with the player, one efficient way to do it is to know what are the
 # neighboring tile to the player and only simulate collision with those. (take care if the sprite for the player
@@ -43,7 +44,7 @@ class Tilemap:
         # coordinates by the tile size to determine the pixel coordinates of the tile's top-left corner.
         # This approach simplifies the rendering process and aligns with how we handle physics and other
         # game mechanics based on the tilemap.
-        self.tilemap: dict[str, Tile] = {}
+        self.tilemap: dict = {}
         # things that are all over the place that might no line up with the grid
         # they will be the dictionary {type, variant, pos (already in pixels)}
         # we mostly use off grid tiles for decor
@@ -56,9 +57,9 @@ class Tilemap:
             # vertical line of stone variant 1 at x = 10 and y from 5 to 15
             self.tilemap["10;" + str(5 + i)] = {"type": "stone", "variant": 1, "pos": (10, 5 + i)}
 
-    def tiles_around(self, position: tuple[float, float]) -> list[Tile]:
+    def tiles_around(self, position: Vector2D) -> list:
         """Get the tiles around a tile."""
-        tiles: list[Tile] = []
+        tiles: list = []
         # be careful when rounding grid and position, we use interger division here to ensure a expected behavior
         tile_location = (int(position[0] // self.tile_size), int(position[1] // self.tile_size))
         for offset in NEIGHBOR_OFFSET:
@@ -67,7 +68,7 @@ class Tilemap:
                 tiles.append(self.tilemap[check_loc])
         return tiles
 
-    def physics_rects_around(self, position: tuple[float, float]) -> list[Rect]:
+    def physics_rects_around(self, position: Vector2D) -> list[Rect]:
         """Return the tiles as pygame Rects for physics."""
         # remember that rect receives left, top, width and heigh, the position will be the pixel position, that's why
         # we are multiplying the grid position by the tile size to get the actual pixel position tha we need to render.
@@ -77,14 +78,20 @@ class Tilemap:
             if tile["type"] in PHYSICS_TILES
         ]
 
-    def render(self, surface: Surface) -> None:
+    def render(self, surface: Surface, offset: Vector2D = (0, 0)) -> None:
         """Render tilemap and offgrid tiles."""
         for tile in self.offgrid_tiles:
-            surface.blit(source=self.game.assets[tile["type"]][tile["variant"]], dest=tile["pos"])
+            surface.blit(
+                source=self.game.assets[tile["type"]][tile["variant"]],
+                dest=(
+                    tile["pos"][0] - offset[0],
+                    tile["pos"][1] - offset[1],
+                ),  # here we apply the offset, negative because so that everythin in the screen moves to the left
+            )
         for loc in self.tilemap:
             tile = self.tilemap[loc]
             # we multiply by the tile size to get the tiles in terms of pixels, because they are in terms of grids
             surface.blit(
                 source=self.game.assets[tile["type"]][tile["variant"]],
-                dest=(tile["pos"][0] * self.tile_size, tile["pos"][1] * self.tile_size),
+                dest=(tile["pos"][0] * self.tile_size - offset[0], tile["pos"][1] * self.tile_size - offset[1]),
             )
