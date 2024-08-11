@@ -6,9 +6,9 @@ import pygame
 from pygame import Surface
 
 from scripts.clouds import Clouds
-from scripts.entities import PhysicsEntity
+from scripts.entities import Player
 from scripts.tilemap import Tilemap
-from scripts.utils import load_image, load_images
+from scripts.utils import Animation, load_image, load_images
 
 # aliases
 Color = tuple[int, int, int]
@@ -60,14 +60,20 @@ class Game:
             "player": load_image("entities/player.png"),
             "background": load_image("background.png"),
             "clouds": load_images("clouds"),
+            "player/idle": Animation(images=load_images("entities/player/idle"), image_duration=6),
+            "player/run": Animation(images=load_images("entities/player/run"), image_duration=4),
+            "player/jump": Animation(images=load_images("entities/player/jump")),
+            "player/slide": Animation(images=load_images("entities/player/slide")),
+            "player/wall_slide": Animation(images=load_images("entities/player/wall_slide")),
         }
         # cloud collection
         self.clouds = Clouds(cloud_images=self.assets["clouds"], count=16)
 
-        self.player = PhysicsEntity(game=self, entity_type="player", position=(50, 50), size=(8, 15))
+        self.player = Player(game=self, position=(50, 50), size=(8, 15))
         self.tilemap = Tilemap(game=self, tile_size=16)
         # illusion of a camera, moving things in the world moves this around
         # cameras location, we apply it as an offset to everything we are rendering in the screen
+        # for us the scroll is the camera position
         self.scroll: list[float] = [0, 0]
 
     def run(self) -> None:  # noqa: C901, PLR0912
@@ -83,8 +89,8 @@ class Game:
             # that gives us how far the camera is to the point where we are right now, so we add that to the scroll x.
             # divinding by a scroll step gives us a smoth "adapting" of the camera to the position where we want it to
             # be.
-            # So in a nutshell our "camera" or "viewport" is just moving everything a bit in some direction to always have
-            # in this case the player at the middle of the screen.
+            # So in a nutshell our "camera" or "viewport" is just moving everything a bit in some direction to always
+            # have in this case the player at the middle of the screen.
             self.scroll[0] += (
                 (self.player.rect().centerx - self.display.get_width() / 2) - self.scroll[0]
             ) / SCROLL_STEP
@@ -99,8 +105,9 @@ class Game:
             render_scroll: Vector2D = (int(self.scroll[0]), int(self.scroll[1]))
             # we want the clouds to be render before/behind the tiles
             self.clouds.update()
+            # the offset parameter is how much we move the object we are about to render
             self.clouds.render(surface=self.display, offset=render_scroll)
-            self.tilemap.render(surface=self.display, offset=render_scroll)
+            self.tilemap.render(self.display, offset=render_scroll)
             # we only want to update x, not y, because platformer
             self.player.update(
                 tilemap=self.tilemap,

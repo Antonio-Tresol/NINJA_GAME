@@ -26,6 +26,7 @@ class Cloud:
         # here we use the depth to creat a parallax effect see: https://en.wikipedia.org/wiki/Parallax_scrolling
         # to know more about parallax effect, essentially we are making the cloud move slower to give a sense of
         # depth and layers.
+        # we apply offset negatively to move the things in the opposite direction to the where the camera is moving
         render_position: tuple[float, float] = (
             self.position[0] - offset[0] * self.depth,
             self.position[1] - offset[1] * self.depth,

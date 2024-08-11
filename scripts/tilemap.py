@@ -53,12 +53,18 @@ class Tilemap:
         for i in range(10):
             # tile will be save as a map, we could make an object for this
             # horizontal line of grass variant 1 at y = 10, x from 3 to 13
-            self.tilemap[str(3 + i) + ";10"] = {"type": "grass", "variant": 1, "pos": (3 + i, 10)}
+            self.tilemap[f"{3 + i};10"] = {"type": "grass", "variant": 1, "pos": (3 + i, 10)}
             # vertical line of stone variant 1 at x = 10 and y from 5 to 15
-            self.tilemap["10;" + str(5 + i)] = {"type": "stone", "variant": 1, "pos": (10, 5 + i)}
+            self.tilemap[f"10;{5 + i}"] = {"type": "stone", "variant": 1, "pos": (10, 5 + i)}
 
     def tiles_around(self, position: Vector2D) -> list:
-        """Get the tiles around a tile."""
+        """Get the tiles around a tile.
+
+        Returns
+        -------
+          list[tiles] the list of tiles around a position.
+
+        """
         tiles: list = []
         # be careful when rounding grid and position, we use interger division here to ensure a expected behavior
         tile_location = (int(position[0] // self.tile_size), int(position[1] // self.tile_size))
@@ -69,7 +75,13 @@ class Tilemap:
         return tiles
 
     def physics_rects_around(self, position: Vector2D) -> list[Rect]:
-        """Return the tiles as pygame Rects for physics."""
+        """Return the tiles as pygame Rects for physics.
+
+        Returns
+        -------
+         list[Rect] Tiles rects around a position
+
+        """
         # remember that rect receives left, top, width and heigh, the position will be the pixel position, that's why
         # we are multiplying the grid position by the tile size to get the actual pixel position tha we need to render.
         return [
@@ -80,6 +92,7 @@ class Tilemap:
 
     def render(self, surface: Surface, offset: Vector2D = (0, 0)) -> None:
         """Render tilemap and offgrid tiles."""
+        # we might need to optimize the off grid tile if they are a lot in a big world
         for tile in self.offgrid_tiles:
             surface.blit(
                 source=self.game.assets[tile["type"]][tile["variant"]],
@@ -88,10 +101,32 @@ class Tilemap:
                     tile["pos"][1] - offset[1],
                 ),  # here we apply the offset, negative because so that everythin in the screen moves to the left
             )
-        for loc in self.tilemap:
-            tile = self.tilemap[loc]
-            # we multiply by the tile size to get the tiles in terms of pixels, because they are in terms of grids
-            surface.blit(
-                source=self.game.assets[tile["type"]][tile["variant"]],
-                dest=(tile["pos"][0] * self.tile_size - offset[0], tile["pos"][1] * self.tile_size - offset[1]),
-            )
+        # one optimization that we can make here is to render only the tiles that are visible in the screen, not all of
+        # them
+        # Calculate the range of x and y tile positions to be rendered based on the camera offset and surface dimensions
+        # Compute the starting x tile position based on the camera position
+        x_start = offset[0] // self.tile_size
+        # Compute the ending x tile position based on the camera position and surface width
+        x_end = (offset[0] + surface.get_width()) // self.tile_size + 1
+
+        # Compute the starting y tile position based on the camera position
+        y_start = offset[1] // self.tile_size
+        # Compute the ending y tile position based on the camera position and surface height
+        y_end = (offset[1] + surface.get_height()) // self.tile_size + 1
+        # Iterate over the range of x and y tile positions
+        for x in range(x_start, x_end):  # type: ignore
+            for y in range(y_start, y_end):  # type: ignore
+                loc: str = f"{x};{y}"  # Create a string key for the current tile position
+                if loc in self.tilemap:  # Check if the tile exists in the tilemap
+                    tile = self.tilemap[loc]  # Retrieve the tile information from the tilemap
+                    # Calculate the position to draw the tile on the surface
+
+                    # we apply offset negatively to move the things in the opposite direction to the where the camera
+                    # is moving
+                    dest_x = tile["pos"][0] * self.tile_size - offset[0]
+                    dest_y = tile["pos"][1] * self.tile_size - offset[1]
+                    # Get the tile image from the game assets and draw it on the surface
+                    surface.blit(
+                        source=self.game.assets[tile["type"]][tile["variant"]],
+                        dest=(dest_x, dest_y),
+                    )
