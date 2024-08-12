@@ -50,12 +50,6 @@ class Tilemap:
         # we mostly use off grid tiles for decor
         self.offgrid_tiles = []
         # creating some tiles
-        for i in range(10):
-            # tile will be save as a map, we could make an object for this
-            # horizontal line of grass variant 1 at y = 10, x from 3 to 13
-            self.tilemap[f"{3 + i};10"] = {"type": "grass", "variant": 1, "pos": (3 + i, 10)}
-            # vertical line of stone variant 1 at x = 10 and y from 5 to 15
-            self.tilemap[f"10;{5 + i}"] = {"type": "stone", "variant": 1, "pos": (10, 5 + i)}
 
     def tiles_around(self, position: Vector2D) -> list:
         """Get the tiles around a tile.
